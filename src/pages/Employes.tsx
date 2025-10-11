@@ -3,10 +3,20 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Plus, Eye, Edit, Trash2, Filter, Download, RefreshCw } from 'lucide-react';
+import {
+  Search,
+  Plus,
+  Edit,
+  Trash2,
+  Filter,
+  Download,
+  RefreshCw,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { employesApi } from '@/api/services';
+import { employesApi, servicesApi, sousDirectionsApi } from '@/api/services';
 import EmployeModal from '@/components/employes/EmployeModal';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import {
@@ -48,6 +58,8 @@ const statutLabels = {
   SUSPENDU_TEMPORAIREMENT: 'Suspendu temporairement',
 };
 
+const ITEMS_PER_PAGE = 5;
+
 export default function Employes() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statutFilter, setStatutFilter] = useState<string>('ALL');
@@ -55,18 +67,105 @@ export default function Employes() {
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<number | null>(null);
-  const [sortBy, setSortBy] = useState<'nom' | 'matricule' | 'dateRecrutement'>('nom');
+  const [sortBy, setSortBy] = useState<'nom' | 'matricule' | 'dateRecrutement'>(
+    'nom'
+  );
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  
+  const [currentPage, setCurrentPage] = useState(1);
+
   const queryClient = useQueryClient();
 
-  const { data, isLoading, refetch, isFetching } = useQuery({
+  // ✅ CHARGER LES EMPLOYÉS
+  const {
+    data: employesData,
+    isLoading,
+    refetch,
+    isFetching,
+  } = useQuery({
     queryKey: ['employes'],
     queryFn: () => employesApi.getAll(),
     staleTime: 30000,
   });
 
-  const employes = (data?.data?.data || []) as Employe[];
+  const employes = (employesData?.data?.data || []) as Employe[];
+
+  // ✅ VÉRIFIER SI L'API RETOURNE DÉJÀ LES NOMS
+  const needsEnrichment = useMemo(() => {
+    if (employes.length === 0) return false;
+    // Si au moins un employé avec serviceId/sousDirectionId n'a pas les noms, on doit enrichir
+    const hasEmployeWithIds = employes.some(
+      (emp) => emp.serviceId || emp.sousDirectionId
+    );
+    if (!hasEmployeWithIds) return false;
+
+    const firstWithIds = employes.find(
+      (emp) => emp.serviceId || emp.sousDirectionId
+    );
+    return !firstWithIds?.serviceNom && !firstWithIds?.sousDirectionNom;
+  }, [employes]);
+
+  // ✅ CHARGER LES SERVICES ET SOUS-DIRECTIONS SEULEMENT SI NÉCESSAIRE
+  const { data: servicesData } = useQuery({
+    queryKey: ['services'],
+    queryFn: () => servicesApi.getAll(),
+    staleTime: 30000,
+    enabled: needsEnrichment,
+  });
+
+  const { data: sousDirectionsData } = useQuery({
+    queryKey: ['sous-directions'],
+    queryFn: () => sousDirectionsApi.getAll(),
+    staleTime: 30000,
+    enabled: needsEnrichment,
+  });
+
+  const services = servicesData?.data?.data || [];
+  const sousDirections = sousDirectionsData?.data?.data || [];
+
+  // ✅ CRÉER DES MAPS POUR LOOKUP RAPIDE (seulement si nécessaire)
+  const serviceMap = useMemo(() => {
+    if (!needsEnrichment) return new Map();
+    const map = new Map();
+    services.forEach((service: any) => {
+      map.set(service.id, service);
+    });
+    return map;
+  }, [services, needsEnrichment]);
+
+  const sousDirectionMap = useMemo(() => {
+    if (!needsEnrichment) return new Map();
+    const map = new Map();
+    sousDirections.forEach((sd: any) => {
+      map.set(sd.id, sd);
+    });
+    return map;
+  }, [sousDirections, needsEnrichment]);
+
+  // ✅ ENRICHIR LES EMPLOYÉS SEULEMENT SI NÉCESSAIRE
+  const enrichedEmployes = useMemo(() => {
+    if (!needsEnrichment) {
+      // L'API retourne déjà les noms, on utilise directement les données
+      return employes;
+    }
+
+    // Sinon, on enrichit avec lookup
+    return employes.map((emp) => {
+      const service = emp.serviceId ? serviceMap.get(emp.serviceId) : null;
+      const sousDirection = emp.sousDirectionId
+        ? sousDirectionMap.get(emp.sousDirectionId)
+        : null;
+
+      return {
+        ...emp,
+        serviceNom: service
+          ? `${service.code} - ${service.nom}`
+          : emp.serviceNom,
+        sousDirectionNom: sousDirection
+          ? `${sousDirection.code} - ${sousDirection.nom}`
+          : emp.sousDirectionNom,
+      };
+    });
+  }, [employes, serviceMap, sousDirectionMap, needsEnrichment]);
 
   const createMutation = useMutation({
     mutationFn: employesApi.create,
@@ -75,9 +174,12 @@ export default function Employes() {
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       toast.success('Employé créé avec succès');
       setModalOpen(false);
+      setSelectedItem(null);
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Erreur lors de la création');
+      toast.error(
+        error.response?.data?.message || 'Erreur lors de la création'
+      );
     },
   });
 
@@ -91,7 +193,9 @@ export default function Employes() {
       setSelectedItem(null);
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Erreur lors de la modification');
+      toast.error(
+        error.response?.data?.message || 'Erreur lors de la modification'
+      );
     },
   });
 
@@ -105,15 +209,24 @@ export default function Employes() {
       setItemToDelete(null);
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Erreur lors de la suppression');
+      toast.error(
+        error.response?.data?.message || 'Erreur lors de la suppression'
+      );
     },
   });
 
   const handleSubmit = (data: any) => {
+    const cleanedData = {
+      ...data,
+      serviceId: data.serviceId || null,
+      sousDirectionId: data.sousDirectionId || null,
+      adresse: data.adresse || null,
+    };
+
     if (selectedItem) {
-      updateMutation.mutate({ id: selectedItem.id, data });
+      updateMutation.mutate({ id: selectedItem.id, data: cleanedData });
     } else {
-      createMutation.mutate(data);
+      createMutation.mutate(cleanedData);
     }
   };
 
@@ -140,67 +253,95 @@ export default function Employes() {
 
   // Filtrage et tri
   const filteredAndSortedEmployes = useMemo(() => {
-    let filtered = employes.filter(emp => {
-      const matchesSearch = 
-        emp.nomComplet.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        emp.matricule.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        emp.fonction.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const matchesStatut = statutFilter === 'ALL' || emp.statut === statutFilter;
-      
+    let filtered = enrichedEmployes.filter((emp) => {
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch =
+        emp.nomComplet.toLowerCase().includes(searchLower) ||
+        emp.matricule.toLowerCase().includes(searchLower) ||
+        emp.nom.toLowerCase().includes(searchLower) ||
+        emp.prenom.toLowerCase().includes(searchLower) ||
+        emp.fonction.toLowerCase().includes(searchLower);
+
+      const matchesStatut =
+        statutFilter === 'ALL' || emp.statut === statutFilter;
+
       return matchesSearch && matchesStatut;
     });
 
-    // Tri
     filtered.sort((a, b) => {
       let compareValue = 0;
-      
+
       if (sortBy === 'nom') {
         compareValue = a.nomComplet.localeCompare(b.nomComplet);
       } else if (sortBy === 'matricule') {
         compareValue = a.matricule.localeCompare(b.matricule);
       } else if (sortBy === 'dateRecrutement') {
-        compareValue = new Date(a.dateRecrutement).getTime() - new Date(b.dateRecrutement).getTime();
+        compareValue =
+          new Date(a.dateRecrutement).getTime() -
+          new Date(b.dateRecrutement).getTime();
       }
-      
+
       return sortOrder === 'asc' ? compareValue : -compareValue;
     });
 
     return filtered;
-  }, [employes, searchTerm, statutFilter, sortBy, sortOrder]);
+  }, [enrichedEmployes, searchTerm, statutFilter, sortBy, sortOrder]);
+
+  // Pagination
+  const totalPages = Math.ceil(
+    filteredAndSortedEmployes.length / ITEMS_PER_PAGE
+  );
+  const paginatedEmployes = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    return filteredAndSortedEmployes.slice(startIndex, endIndex);
+  }, [filteredAndSortedEmployes, currentPage]);
+
+  // Reset pagination when filters change
+  useMemo(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statutFilter]);
 
   // Statistiques
   const stats = useMemo(() => {
     return {
       total: employes.length,
-      actifs: employes.filter(e => e.statut === 'ACTIF').length,
+      actifs: employes.filter((e) => e.statut === 'ACTIF').length,
       filtered: filteredAndSortedEmployes.length,
     };
   }, [employes, filteredAndSortedEmployes]);
 
   const exportToCSV = () => {
-    const headers = ['Matricule', 'Nom', 'Prénom', 'Fonction', 'Statut', 'Service', 'Sous-Direction'];
-    const csvData = filteredAndSortedEmployes.map(emp => [
+    const headers = [
+      'Matricule',
+      'Nom',
+      'Prénom',
+      'Fonction',
+      'Statut',
+      'Sous-Direction',
+      'Service',
+    ];
+    const csvData = filteredAndSortedEmployes.map((emp: any) => [
       emp.matricule,
       emp.nom,
       emp.prenom,
       emp.fonction,
       statutLabels[emp.statut],
-      emp.serviceNom || '-',
       emp.sousDirectionNom || '-',
+      emp.serviceNom || '-',
     ]);
-    
+
     const csvContent = [
       headers.join(','),
-      ...csvData.map(row => row.map(cell => `"${cell}"`).join(','))
+      ...csvData.map((row) => row.map((cell) => `"${cell}"`).join(',')),
     ].join('\n');
-    
+
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = `employes_${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
-    
+
     toast.success('Export CSV réussi');
   };
 
@@ -209,7 +350,9 @@ export default function Employes() {
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Chargement des employés...</p>
+          <p className="mt-4 text-muted-foreground">
+            Chargement des employés...
+          </p>
         </div>
       </div>
     );
@@ -220,30 +363,37 @@ export default function Employes() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Gestion des Employés</h1>
+          <h1 className="text-3xl font-bold text-foreground">
+            Gestion des Employés
+          </h1>
           <p className="mt-2 text-muted-foreground">
-            {stats.filtered} employés affichés sur {stats.total} • {stats.actifs} actifs
+            {stats.filtered} employés affichés sur {stats.total} •{' '}
+            {stats.actifs} actifs
           </p>
         </div>
         <div className="flex gap-2">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             className="gap-2"
             onClick={handleRefresh}
             disabled={isFetching}
           >
-            <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+            <RefreshCw
+              className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`}
+            />
             Actualiser
           </Button>
-          <Button 
-            variant="outline" 
-            className="gap-2"
-            onClick={exportToCSV}
-          >
+          <Button variant="outline" className="gap-2" onClick={exportToCSV}>
             <Download className="h-4 w-4" />
             Exporter
           </Button>
-          <Button className="gap-2" onClick={() => { setSelectedItem(null); setModalOpen(true); }}>
+          <Button
+            className="gap-2"
+            onClick={() => {
+              setSelectedItem(null);
+              setModalOpen(true);
+            }}
+          >
             <Plus className="h-4 w-4" />
             Ajouter un Employé
           </Button>
@@ -254,7 +404,9 @@ export default function Employes() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="p-4">
           <div className="text-sm text-muted-foreground">Total</div>
-          <div className="text-2xl font-bold text-foreground">{stats.total}</div>
+          <div className="text-2xl font-bold text-foreground">
+            {stats.total}
+          </div>
         </Card>
         <Card className="p-4">
           <div className="text-sm text-muted-foreground">Actifs</div>
@@ -262,12 +414,17 @@ export default function Employes() {
         </Card>
         <Card className="p-4">
           <div className="text-sm text-muted-foreground">Filtrés</div>
-          <div className="text-2xl font-bold text-primary">{stats.filtered}</div>
+          <div className="text-2xl font-bold text-primary">
+            {stats.filtered}
+          </div>
         </Card>
         <Card className="p-4">
           <div className="text-sm text-muted-foreground">Taux d'activité</div>
           <div className="text-2xl font-bold text-foreground">
-            {stats.total > 0 ? Math.round((stats.actifs / stats.total) * 100) : 0}%
+            {stats.total > 0
+              ? Math.round((stats.actifs / stats.total) * 100)
+              : 0}
+            %
           </div>
         </Card>
       </div>
@@ -278,13 +435,13 @@ export default function Employes() {
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
-              placeholder="Rechercher par nom, matricule ou fonction..."
+              placeholder="Rechercher par matricule, nom, prénom ou fonction..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
             />
           </div>
-          
+
           <Select value={statutFilter} onValueChange={setStatutFilter}>
             <SelectTrigger className="w-full md:w-[200px]">
               <Filter className="h-4 w-4 mr-2" />
@@ -295,18 +452,25 @@ export default function Employes() {
               <SelectItem value="ACTIF">Actif</SelectItem>
               <SelectItem value="SUSPENDU">Suspendu</SelectItem>
               <SelectItem value="MALADIE">En maladie</SelectItem>
-              <SelectItem value="SUSPENDU_TEMPORAIREMENT">Suspendu temporairement</SelectItem>
+              <SelectItem value="SUSPENDU_TEMPORAIREMENT">
+                Suspendu temporairement
+              </SelectItem>
             </SelectContent>
           </Select>
 
-          <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+          <Select
+            value={sortBy}
+            onValueChange={(value: any) => setSortBy(value)}
+          >
             <SelectTrigger className="w-full md:w-[200px]">
               <SelectValue placeholder="Trier par" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="nom">Nom</SelectItem>
               <SelectItem value="matricule">Matricule</SelectItem>
-              <SelectItem value="dateRecrutement">Date de recrutement</SelectItem>
+              <SelectItem value="dateRecrutement">
+                Date de recrutement
+              </SelectItem>
             </SelectContent>
           </Select>
 
@@ -336,10 +500,10 @@ export default function Employes() {
                   Fonction
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Service
+                  Sous-Direction
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Sous-Direction
+                  Service
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Statut
@@ -350,9 +514,12 @@ export default function Employes() {
               </tr>
             </thead>
             <tbody className="bg-card divide-y divide-border">
-              {filteredAndSortedEmployes.length > 0 ? (
-                filteredAndSortedEmployes.map((employe) => (
-                  <tr key={employe.id} className="hover:bg-muted/50 transition-colors">
+              {paginatedEmployes.length > 0 ? (
+                paginatedEmployes.map((employe: any) => (
+                  <tr
+                    key={employe.id}
+                    className="hover:bg-muted/50 transition-colors"
+                  >
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
                       {employe.matricule}
                     </td>
@@ -363,10 +530,10 @@ export default function Employes() {
                       {employe.fonction}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                      {employe.serviceNom || '-'}
+                      {employe.sousDirectionNom || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                      {employe.sousDirectionNom || '-'}
+                      {employe.serviceNom || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <Badge className={statutColors[employe.statut]}>
@@ -375,23 +542,16 @@ export default function Employes() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <div className="flex items-center gap-2">
-                        <Button 
-                          size="sm" 
+                        <Button
+                          size="sm"
                           variant="ghost"
-                          onClick={() => handleEdit(employe)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
                           onClick={() => handleEdit(employe)}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
+                        <Button
+                          size="sm"
+                          variant="ghost"
                           onClick={() => handleDelete(employe.id)}
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
@@ -406,7 +566,9 @@ export default function Employes() {
                     <div className="text-muted-foreground">
                       <Search className="h-12 w-12 mx-auto mb-2 opacity-50" />
                       <p>Aucun employé trouvé</p>
-                      <p className="text-sm mt-1">Essayez de modifier vos critères de recherche</p>
+                      <p className="text-sm mt-1">
+                        Essayez de modifier vos critères de recherche
+                      </p>
                     </div>
                   </td>
                 </tr>
@@ -414,11 +576,87 @@ export default function Employes() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-6 py-4 border-t border-border">
+            <div className="text-sm text-muted-foreground">
+              Affichage de {(currentPage - 1) * ITEMS_PER_PAGE + 1} à{' '}
+              {Math.min(
+                currentPage * ITEMS_PER_PAGE,
+                filteredAndSortedEmployes.length
+              )}{' '}
+              sur {filteredAndSortedEmployes.length} employés
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Précédent
+              </Button>
+
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                  (page) => {
+                    if (
+                      page === 1 ||
+                      page === totalPages ||
+                      (page >= currentPage - 1 && page <= currentPage + 1)
+                    ) {
+                      return (
+                        <Button
+                          key={page}
+                          variant={currentPage === page ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setCurrentPage(page)}
+                          className="w-10"
+                        >
+                          {page}
+                        </Button>
+                      );
+                    } else if (
+                      page === currentPage - 2 ||
+                      page === currentPage + 2
+                    ) {
+                      return (
+                        <span key={page} className="px-2">
+                          ...
+                        </span>
+                      );
+                    }
+                    return null;
+                  }
+                )}
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                }
+                disabled={currentPage === totalPages}
+              >
+                Suivant
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
 
       <EmployeModal
         open={modalOpen}
-        onOpenChange={setModalOpen}
+        onOpenChange={(open) => {
+          setModalOpen(open);
+          if (!open) {
+            setSelectedItem(null);
+          }
+        }}
         onSubmit={handleSubmit}
         initialData={selectedItem}
         isLoading={createMutation.isPending || updateMutation.isPending}

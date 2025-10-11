@@ -103,7 +103,7 @@ export default function EmployeModal({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {initialData ? 'Modifier l\'employé' : 'Nouvel employé'}
+            {initialData ? "Modifier l'employé" : 'Nouvel employé'}
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -112,13 +112,18 @@ export default function EmployeModal({
               <Label htmlFor="matricule">Matricule *</Label>
               <Input id="matricule" {...register('matricule')} />
               {errors.matricule && (
-                <p className="text-sm text-destructive mt-1">{errors.matricule.message}</p>
+                <p className="text-sm text-destructive mt-1">
+                  {errors.matricule.message}
+                </p>
               )}
             </div>
 
             <div>
               <Label htmlFor="statut">Statut *</Label>
-              <Select value={statut} onValueChange={(value) => setValue('statut', value as any)}>
+              <Select
+                value={statut}
+                onValueChange={(value) => setValue('statut', value as any)}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -126,11 +131,15 @@ export default function EmployeModal({
                   <SelectItem value="ACTIF">Actif</SelectItem>
                   <SelectItem value="SUSPENDU">Suspendu</SelectItem>
                   <SelectItem value="MALADIE">Maladie</SelectItem>
-                  <SelectItem value="SUSPENDU_TEMPORAIREMENT">Suspendu Temporairement</SelectItem>
+                  <SelectItem value="SUSPENDU_TEMPORAIREMENT">
+                    Suspendu Temporairement
+                  </SelectItem>
                 </SelectContent>
               </Select>
               {errors.statut && (
-                <p className="text-sm text-destructive mt-1">{errors.statut.message}</p>
+                <p className="text-sm text-destructive mt-1">
+                  {errors.statut.message}
+                </p>
               )}
             </div>
 
@@ -138,7 +147,9 @@ export default function EmployeModal({
               <Label htmlFor="nom">Nom *</Label>
               <Input id="nom" {...register('nom')} />
               {errors.nom && (
-                <p className="text-sm text-destructive mt-1">{errors.nom.message}</p>
+                <p className="text-sm text-destructive mt-1">
+                  {errors.nom.message}
+                </p>
               )}
             </div>
 
@@ -146,23 +157,37 @@ export default function EmployeModal({
               <Label htmlFor="prenom">Prénom *</Label>
               <Input id="prenom" {...register('prenom')} />
               {errors.prenom && (
-                <p className="text-sm text-destructive mt-1">{errors.prenom.message}</p>
+                <p className="text-sm text-destructive mt-1">
+                  {errors.prenom.message}
+                </p>
               )}
             </div>
 
             <div>
               <Label htmlFor="dateNaissance">Date de naissance *</Label>
-              <Input id="dateNaissance" type="date" {...register('dateNaissance')} />
+              <Input
+                id="dateNaissance"
+                type="date"
+                {...register('dateNaissance')}
+              />
               {errors.dateNaissance && (
-                <p className="text-sm text-destructive mt-1">{errors.dateNaissance.message}</p>
+                <p className="text-sm text-destructive mt-1">
+                  {errors.dateNaissance.message}
+                </p>
               )}
             </div>
 
             <div>
               <Label htmlFor="dateRecrutement">Date de recrutement *</Label>
-              <Input id="dateRecrutement" type="date" {...register('dateRecrutement')} />
+              <Input
+                id="dateRecrutement"
+                type="date"
+                {...register('dateRecrutement')}
+              />
               {errors.dateRecrutement && (
-                <p className="text-sm text-destructive mt-1">{errors.dateRecrutement.message}</p>
+                <p className="text-sm text-destructive mt-1">
+                  {errors.dateRecrutement.message}
+                </p>
               )}
             </div>
 
@@ -170,21 +195,28 @@ export default function EmployeModal({
               <Label htmlFor="fonction">Fonction *</Label>
               <Input id="fonction" {...register('fonction')} />
               {errors.fonction && (
-                <p className="text-sm text-destructive mt-1">{errors.fonction.message}</p>
+                <p className="text-sm text-destructive mt-1">
+                  {errors.fonction.message}
+                </p>
               )}
             </div>
 
             <div>
               <Label htmlFor="serviceId">Service</Label>
               <Select
-                value={serviceId?.toString() || ''}
-                onValueChange={(value) => setValue('serviceId', value ? parseInt(value) : undefined)}
+                value={serviceId?.toString() || 'none'}
+                onValueChange={(value) =>
+                  setValue(
+                    'serviceId',
+                    value === 'none' ? undefined : parseInt(value)
+                  )
+                }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Sélectionner un service" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Aucun</SelectItem>
+                  <SelectItem value="none">Aucun</SelectItem>
                   {servicesData?.data?.data?.map((service: any) => (
                     <SelectItem key={service.id} value={service.id.toString()}>
                       {service.code} - {service.nom}
@@ -197,14 +229,19 @@ export default function EmployeModal({
             <div>
               <Label htmlFor="sousDirectionId">Sous-Direction</Label>
               <Select
-                value={sousDirectionId?.toString() || ''}
-                onValueChange={(value) => setValue('sousDirectionId', value ? parseInt(value) : undefined)}
+                value={sousDirectionId?.toString() || 'none'}
+                onValueChange={(value) =>
+                  setValue(
+                    'sousDirectionId',
+                    value === 'none' ? undefined : parseInt(value)
+                  )
+                }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Sélectionner une sous-direction" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Aucune</SelectItem>
+                  <SelectItem value="none">Aucune</SelectItem>
                   {sousDirectionsData?.data?.data?.map((sd: any) => (
                     <SelectItem key={sd.id} value={sd.id.toString()}>
                       {sd.code} - {sd.nom}
@@ -218,13 +255,19 @@ export default function EmployeModal({
               <Label htmlFor="adresse">Adresse</Label>
               <Textarea id="adresse" {...register('adresse')} />
               {errors.adresse && (
-                <p className="text-sm text-destructive mt-1">{errors.adresse.message}</p>
+                <p className="text-sm text-destructive mt-1">
+                  {errors.adresse.message}
+                </p>
               )}
             </div>
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
               Annuler
             </Button>
             <Button type="submit" disabled={isLoading}>

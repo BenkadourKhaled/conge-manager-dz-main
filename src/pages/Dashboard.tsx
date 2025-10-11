@@ -1,11 +1,19 @@
 import { useQuery } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
-import { Users, UserCheck, Calendar, Award, Building2, Briefcase, TrendingUp, AlertCircle } from 'lucide-react';
+import {
+  Users,
+  UserCheck,
+  Calendar,
+  Award,
+  Building2,
+  Briefcase,
+  TrendingUp,
+  AlertCircle,
+  Clock,
+} from 'lucide-react';
 import { dashboardApi, employesApi } from '@/api/services';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
-import { Skeleton } from '@/components/ui/skeleton';
 
 interface DashboardStats {
   totalEmployes: number;
@@ -26,33 +34,25 @@ interface Employe {
   statut: 'ACTIF' | 'SUSPENDU' | 'MALADIE' | 'SUSPENDU_TEMPORAIREMENT';
   fonction: string;
   serviceNom?: string;
-  sousDirectionNom?: string;
 }
 
 const statutColors = {
-  ACTIF: 'bg-success text-success-foreground',
-  SUSPENDU: 'bg-destructive text-destructive-foreground',
-  MALADIE: 'bg-warning text-warning-foreground',
-  SUSPENDU_TEMPORAIREMENT: 'bg-secondary text-secondary-foreground',
-};
-
-const statutLabels = {
-  ACTIF: 'Actif',
-  SUSPENDU: 'Suspendu',
-  MALADIE: 'En maladie',
-  SUSPENDU_TEMPORAIREMENT: 'Suspendu temporairement',
+  ACTIF: 'bg-success',
+  SUSPENDU: 'bg-destructive',
+  MALADIE: 'bg-warning',
+  SUSPENDU_TEMPORAIREMENT: 'bg-secondary',
 };
 
 export default function Dashboard() {
   const navigate = useNavigate();
 
-  const { data: statsData, isLoading: statsLoading } = useQuery({
+  const { data: statsData, isLoading } = useQuery({
     queryKey: ['dashboard-stats'],
     queryFn: () => dashboardApi.getStatistics(),
-    refetchInterval: 30000, // Refresh every 30 seconds
+    refetchInterval: 30000,
   });
 
-  const { data: employesData, isLoading: employesLoading } = useQuery({
+  const { data: employesData } = useQuery({
     queryKey: ['employes-dashboard'],
     queryFn: () => employesApi.getAll(),
     refetchInterval: 30000,
@@ -60,304 +60,410 @@ export default function Dashboard() {
 
   const stats = statsData?.data?.data as DashboardStats;
   const employes = (employesData?.data?.data || []) as Employe[];
+  const recentEmployes = employes.slice(0, 3);
 
-  // Calculer les statistiques des employés
+  // Statistiques par statut
   const employesParStatut = employes.reduce((acc, emp) => {
     acc[emp.statut] = (acc[emp.statut] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
-  const recentEmployes = employes.slice(0, 5);
+  const tauxActivite = stats?.totalEmployes
+    ? Math.round((stats.employesActifs / stats.totalEmployes) * 100)
+    : 0;
 
-  if (statsLoading) {
+  if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex items-center justify-center h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Chargement des statistiques...</p>
+          <p className="mt-4 text-muted-foreground">Chargement...</p>
         </div>
       </div>
     );
   }
 
-  const statCards = [
+  const mainStats = [
     {
-      title: 'Total Employés',
+      title: 'Employés',
       value: stats?.totalEmployes || 0,
+      change: `${stats?.employesActifs || 0} actifs`,
       icon: Users,
       gradient: 'from-blue-500 to-blue-600',
-      textColor: 'text-blue-600',
-      bgColor: 'bg-blue-50',
-      description: 'Tous statuts confondus',
       onClick: () => navigate('/employes'),
     },
     {
-      title: 'Employés Actifs',
-      value: stats?.employesActifs || 0,
-      icon: UserCheck,
-      gradient: 'from-green-500 to-green-600',
-      textColor: 'text-green-600',
-      bgColor: 'bg-green-50',
-      description: 'En service actuellement',
-      onClick: () => navigate('/employes'),
-    },
-    {
-      title: 'Employés en Congé',
+      title: 'En Congé',
       value: stats?.employesEnConge || 0,
+      change: 'actuellement',
       icon: Calendar,
-      gradient: 'from-amber-500 to-amber-600',
-      textColor: 'text-amber-600',
-      bgColor: 'bg-amber-50',
-      description: 'Congés en cours',
+      gradient: 'from-amber-500 to-orange-500',
       onClick: () => navigate('/demandes-conges'),
     },
     {
-      title: 'Demandes en Attente',
+      title: 'En Attente',
       value: stats?.demandesEnAttente || 0,
+      change: 'demandes',
       icon: AlertCircle,
-      gradient: 'from-purple-500 to-purple-600',
-      textColor: 'text-purple-600',
-      bgColor: 'bg-purple-50',
-      description: 'Nécessitent traitement',
+      gradient: 'from-purple-500 to-pink-500',
       onClick: () => navigate('/demandes-conges'),
     },
     {
-      title: 'Bénéficiaires ICA',
+      title: 'ICA Éligibles',
       value: stats?.beneficiairesICA || 0,
+      change: 'bénéficiaires',
       icon: Award,
-      gradient: 'from-emerald-500 to-emerald-600',
-      textColor: 'text-emerald-600',
-      bgColor: 'bg-emerald-50',
-      description: 'Éligibles à la prime',
+      gradient: 'from-emerald-500 to-teal-500',
       onClick: () => navigate('/ica'),
     },
+  ];
+
+  const secondaryStats = [
     {
-      title: 'Sous-Directions',
+      label: 'Sous-Directions',
       value: stats?.totalSousDirections || 0,
       icon: Building2,
-      gradient: 'from-indigo-500 to-indigo-600',
-      textColor: 'text-indigo-600',
-      bgColor: 'bg-indigo-50',
-      description: 'Structures organisées',
-      onClick: () => navigate('/sous-directions'),
+      color: 'text-indigo-600',
+      bg: 'bg-indigo-50',
     },
     {
-      title: 'Services',
+      label: 'Services',
       value: stats?.totalServices || 0,
       icon: Briefcase,
-      gradient: 'from-rose-500 to-rose-600',
-      textColor: 'text-rose-600',
-      bgColor: 'bg-rose-50',
-      description: 'Départements actifs',
-      onClick: () => navigate('/services'),
+      color: 'text-rose-600',
+      bg: 'bg-rose-50',
     },
     {
-      title: 'Taux d\'Activité',
-      value: stats?.totalEmployes 
-        ? `${Math.round((stats.employesActifs / stats.totalEmployes) * 100)}%`
-        : '0%',
+      label: "Taux d'activité",
+      value: `${tauxActivite}%`,
       icon: TrendingUp,
-      gradient: 'from-cyan-500 to-cyan-600',
-      textColor: 'text-cyan-600',
-      bgColor: 'bg-cyan-50',
-      description: 'Employés actifs',
-      onClick: () => {},
+      color: 'text-cyan-600',
+      bg: 'bg-cyan-50',
     },
   ];
 
   return (
-    <div className="space-y-8">
+    <div className="h-[calc(100vh-4rem)] overflow-hidden p-2 sm:p-3 lg:p-4 flex flex-col gap-2 sm:gap-3">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Tableau de Bord</h1>
-        <p className="mt-2 text-muted-foreground">
-          Vue d'ensemble de la gestion des congés - CNAS Constantine
-        </p>
+      <div className="flex-shrink-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div>
+          <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground">
+            Tableau de Bord
+          </h1>
+          <p className="text-[10px] sm:text-xs text-muted-foreground">
+            CNAS Constantine - Gestion des Congés
+          </p>
+        </div>
+        <div className="flex items-center gap-2 text-[10px] sm:text-xs text-muted-foreground">
+          <Clock className="h-3 w-3" />
+          <span className="hidden lg:inline">
+            {new Date().toLocaleDateString('fr-FR', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+            })}
+          </span>
+          <span className="lg:hidden">
+            {new Date().toLocaleDateString('fr-FR', {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+            })}
+          </span>
+        </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {statCards.map((stat, index) => (
-          <Card 
-            key={index} 
-            className="p-6 hover:shadow-elegant transition-all duration-200 cursor-pointer hover:scale-105"
+      {/* Main Stats - 4 cards */}
+      <div className="flex-shrink-0 grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+        {mainStats.map((stat, index) => (
+          <Card
+            key={index}
+            className="relative overflow-hidden cursor-pointer group hover:shadow-lg transition-all duration-300"
             onClick={stat.onClick}
           >
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">{stat.title}</p>
-                <p className="mt-2 text-3xl font-bold text-foreground">{stat.value}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{stat.description}</p>
-              </div>
-              <div className={`${stat.bgColor} p-3 rounded-lg`}>
-                <stat.icon className={`h-6 w-6 ${stat.textColor}`} />
+            <div
+              className={`absolute inset-0 bg-gradient-to-br ${stat.gradient} opacity-0 group-hover:opacity-10 transition-opacity duration-300`}
+            ></div>
+            <div className="p-2 sm:p-3 relative">
+              <div className="flex items-start justify-between">
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] sm:text-xs font-medium text-muted-foreground uppercase tracking-wider truncate">
+                    {stat.title}
+                  </p>
+                  <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground mt-0.5">
+                    {stat.value}
+                  </p>
+                  <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-0.5 truncate">
+                    {stat.change}
+                  </p>
+                </div>
+                <div
+                  className={`p-1.5 sm:p-2 rounded-lg bg-gradient-to-br ${stat.gradient} group-hover:scale-110 transition-transform duration-300 flex-shrink-0`}
+                >
+                  <stat.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" />
+                </div>
               </div>
             </div>
           </Card>
         ))}
       </div>
 
-      {/* Detailed Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Employés récents */}
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-foreground">Employés Récents</h3>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => navigate('/employes')}
-            >
-              Voir tout
-            </Button>
-          </div>
-          
-          {employesLoading ? (
-            <div className="space-y-4">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <Skeleton className="h-10 w-10 rounded-full" />
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-3 w-2/3" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : recentEmployes.length > 0 ? (
-            <div className="space-y-4">
-              {recentEmployes.map((employe) => (
-                <div 
-                  key={employe.id} 
-                  className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+      {/* Content Grid - 3 columns */}
+      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-2 sm:gap-3">
+        {/* Left Column - Employés récents */}
+        <div className="lg:col-span-4 flex flex-col min-h-0">
+          <Card className="p-2 sm:p-3 flex-1 flex flex-col min-h-0">
+            <h3 className="text-xs sm:text-sm font-semibold text-foreground mb-2 flex-shrink-0">
+              Employés Récents
+            </h3>
+            <div className="flex-1 min-h-0 overflow-auto space-y-1.5 sm:space-y-2">
+              {recentEmployes.map((emp) => (
+                <div
+                  key={emp.id}
+                  className="flex items-center gap-2 p-1.5 sm:p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
                   onClick={() => navigate('/employes')}
                 >
                   <div className="flex-shrink-0">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                      <span className="text-sm font-medium text-primary">
-                        {employe.nom[0]}{employe.prenom[0]}
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
+                      <span className="text-[10px] sm:text-xs font-semibold text-white">
+                        {emp.nom[0]}
+                        {emp.prenom[0]}
                       </span>
                     </div>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">
-                      {employe.nomComplet}
+                    <p className="text-xs sm:text-sm font-medium text-foreground truncate">
+                      {emp.nomComplet}
                     </p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {employe.matricule} • {employe.fonction}
+                    <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
+                      {emp.matricule} • {emp.fonction}
                     </p>
-                    {employe.serviceNom && (
-                      <p className="text-xs text-muted-foreground truncate mt-1">
-                        {employe.serviceNom}
-                      </p>
-                    )}
                   </div>
-                  <Badge className={`${statutColors[employe.statut]} text-xs`}>
-                    {statutLabels[employe.statut]}
-                  </Badge>
+                  <div
+                    className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${
+                      statutColors[emp.statut]
+                    } flex-shrink-0`}
+                  ></div>
                 </div>
               ))}
             </div>
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              <Users className="h-12 w-12 mx-auto mb-2 opacity-50" />
-              <p>Aucun employé trouvé</p>
-            </div>
-          )}
-        </Card>
+          </Card>
+        </div>
 
-        {/* Répartition par statut */}
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold text-foreground mb-6">
-            Répartition des Employés par Statut
-          </h3>
-          <div className="space-y-4">
-            {Object.entries(statutLabels).map(([key, label]) => {
-              const count = employesParStatut[key] || 0;
-              const percentage = stats?.totalEmployes 
-                ? Math.round((count / stats.totalEmployes) * 100)
-                : 0;
-              
-              return (
-                <div key={key} className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2">
-                      <Badge className={`${statutColors[key as keyof typeof statutColors]} text-xs`}>
-                        {label}
-                      </Badge>
-                    </div>
-                    <span className="font-medium text-foreground">
-                      {count} ({percentage}%)
-                    </span>
+        {/* Middle Column - Stats & Activity */}
+        <div className="lg:col-span-5 flex flex-col gap-2 sm:gap-3 min-h-0">
+          {/* Secondary Stats */}
+          <div className="flex-shrink-0 grid grid-cols-3 gap-2">
+            {secondaryStats.map((stat, i) => (
+              <Card key={i} className="p-2 hover:shadow-md transition-shadow">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[9px] sm:text-[10px] text-muted-foreground mb-0.5 truncate">
+                      {stat.label}
+                    </p>
+                    <p className="text-base sm:text-lg lg:text-xl font-bold text-foreground">
+                      {stat.value}
+                    </p>
                   </div>
-                  <div className="w-full bg-muted rounded-full h-2">
-                    <div 
-                      className={`h-2 rounded-full transition-all duration-500 ${
-                        key === 'ACTIF' ? 'bg-success' :
-                        key === 'SUSPENDU' ? 'bg-destructive' :
-                        key === 'MALADIE' ? 'bg-warning' :
-                        'bg-secondary'
-                      }`}
-                      style={{ width: `${percentage}%` }}
-                    />
+                  <div className={`${stat.bg} p-1 sm:p-1.5 rounded-lg self-start sm:self-center flex-shrink-0`}>
+                    <stat.icon className={`h-3 w-3 sm:h-3.5 sm:w-3.5 ${stat.color}`} />
                   </div>
                 </div>
-              );
-            })}
+              </Card>
+            ))}
           </div>
-        </Card>
 
-        {/* Activité Récente */}
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold text-foreground mb-4">Activité Récente</h3>
-          <div className="space-y-4">
-            <div className="flex items-start gap-3">
-              <div className="w-2 h-2 rounded-full bg-success mt-2 flex-shrink-0"></div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-foreground">Demande de congé approuvée</p>
-                <p className="text-xs text-muted-foreground">Il y a 2 heures</p>
-              </div>
+          {/* Répartition par statut */}
+          <Card className="p-2 sm:p-3 flex-1 flex flex-col min-h-0">
+            <h3 className="text-xs sm:text-sm font-semibold text-foreground mb-2 flex-shrink-0">
+              Répartition par Statut
+            </h3>
+            <div className="flex-1 min-h-0 overflow-auto space-y-2">
+              {[
+                { key: 'ACTIF', label: 'Actifs', color: 'bg-success' },
+                { key: 'MALADIE', label: 'En Maladie', color: 'bg-warning' },
+                {
+                  key: 'SUSPENDU',
+                  label: 'Suspendus',
+                  color: 'bg-destructive',
+                },
+                {
+                  key: 'SUSPENDU_TEMPORAIREMENT',
+                  label: 'Susp. Temp.',
+                  color: 'bg-secondary',
+                },
+              ].map(({ key, label, color }) => {
+                const count = employesParStatut[key] || 0;
+                const percentage = stats?.totalEmployes
+                  ? Math.round((count / stats.totalEmployes) * 100)
+                  : 0;
+                return (
+                  <div key={key}>
+                    <div className="flex items-center justify-between text-[10px] sm:text-xs mb-1">
+                      <span className="text-muted-foreground">{label}</span>
+                      <span className="font-semibold text-foreground">
+                        {count} ({percentage}%)
+                      </span>
+                    </div>
+                    <div className="w-full bg-muted rounded-full h-1 sm:h-1.5">
+                      <div
+                        className={`h-1 sm:h-1.5 rounded-full ${color} transition-all duration-500`}
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            <div className="flex items-start gap-3">
-              <div className="w-2 h-2 rounded-full bg-warning mt-2 flex-shrink-0"></div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-foreground">Nouvelle demande en attente</p>
-                <p className="text-xs text-muted-foreground">Il y a 5 heures</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <div className="w-2 h-2 rounded-full bg-primary mt-2 flex-shrink-0"></div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-foreground">Nouvel employé ajouté</p>
-                <p className="text-xs text-muted-foreground">Il y a 1 jour</p>
-              </div>
-            </div>
-          </div>
-        </Card>
+          </Card>
 
-        {/* Alertes ICA */}
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold text-foreground mb-4">Alertes ICA</h3>
-          <div className="space-y-4">
-            <div className="p-4 bg-success/10 rounded-lg border border-success/20">
-              <div className="flex items-center gap-2 mb-2">
-                <Award className="h-5 w-5 text-success" />
-                <p className="font-medium text-success">Éligibilité ICA</p>
+          {/* Activité Récente */}
+          <Card className="p-2 sm:p-3 flex-shrink-0">
+            <h3 className="text-xs sm:text-sm font-semibold text-foreground mb-2">
+              Activité Récente
+            </h3>
+            <div className="space-y-1.5 sm:space-y-2">
+              <div className="flex items-start gap-2">
+                <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-success mt-1 flex-shrink-0"></div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] sm:text-xs font-medium text-foreground truncate">
+                    Demande approuvée
+                  </p>
+                  <p className="text-[9px] sm:text-[10px] text-muted-foreground">Il y a 2h</p>
+                </div>
               </div>
-              <p className="text-sm text-muted-foreground">
-                {stats?.beneficiairesICA || 0} employés sont éligibles à la prime ICA cette année
-              </p>
+              <div className="flex items-start gap-2">
+                <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-warning mt-1 flex-shrink-0"></div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] sm:text-xs font-medium text-foreground truncate">
+                    Nouvelle demande
+                  </p>
+                  <p className="text-[9px] sm:text-[10px] text-muted-foreground">Il y a 5h</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-primary mt-1 flex-shrink-0"></div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] sm:text-xs font-medium text-foreground truncate">
+                    Employé ajouté
+                  </p>
+                  <p className="text-[9px] sm:text-[10px] text-muted-foreground">Il y a 1j</p>
+                </div>
+              </div>
             </div>
-            <Button 
-              className="w-full gap-2" 
-              variant="outline"
-              onClick={() => navigate('/ica')}
-            >
-              <Award className="h-4 w-4" />
-              Consulter le suivi ICA complet
-            </Button>
-          </div>
-        </Card>
+          </Card>
+        </div>
+
+        {/* Right Column - ICA & Performance */}
+        <div className="lg:col-span-3 flex flex-col gap-2 sm:gap-3 min-h-0">
+          {/* ICA Card */}
+          <Card className="p-2 sm:p-3 bg-gradient-to-br from-emerald-500 to-teal-500 text-white flex-shrink-0">
+            <div className="flex flex-col justify-between h-full">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Award className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <h3 className="text-xs sm:text-sm font-semibold">Prime ICA</h3>
+                </div>
+                <p className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1">
+                  {stats?.beneficiairesICA || 0}
+                </p>
+                <p className="text-[10px] sm:text-xs opacity-90">
+                  Employés éligibles cette année
+                </p>
+              </div>
+              <button
+                onClick={() => navigate('/ica')}
+                className="mt-2 w-full py-1.5 px-2 bg-white/20 hover:bg-white/30 rounded-lg text-[10px] sm:text-xs font-medium transition-colors backdrop-blur-sm"
+              >
+                Consulter le suivi complet
+              </button>
+            </div>
+          </Card>
+
+          {/* Performance Card */}
+          <Card className="p-2 sm:p-3 flex-1 flex flex-col min-h-0">
+            <h3 className="text-xs sm:text-sm font-semibold text-foreground mb-2 flex-shrink-0">
+              Performance
+            </h3>
+            <div className="flex-1 flex flex-col justify-center space-y-2 sm:space-y-3">
+              <div className="text-center">
+                <div className="relative w-20 h-20 sm:w-24 sm:h-24 mx-auto">
+                  <svg className="w-full h-full transform -rotate-90">
+                    <circle
+                      cx="50%"
+                      cy="50%"
+                      r="42%"
+                      stroke="currentColor"
+                      strokeWidth="6"
+                      fill="none"
+                      className="text-muted"
+                    />
+                    <circle
+                      cx="50%"
+                      cy="50%"
+                      r="42%"
+                      stroke="currentColor"
+                      strokeWidth="6"
+                      fill="none"
+                      strokeDasharray={`${2 * Math.PI * 40}`}
+                      strokeDashoffset={`${
+                        2 * Math.PI * 40 * (1 - tauxActivite / 100)
+                      }`}
+                      className="text-success transition-all duration-1000"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="text-center">
+                      <p className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground">
+                        {tauxActivite}%
+                      </p>
+                      <p className="text-[9px] sm:text-[10px] text-muted-foreground">
+                        Activité
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-1.5 sm:gap-2 text-center">
+                <div className="p-1.5 sm:p-2 bg-muted rounded-lg">
+                  <p className="text-sm sm:text-base lg:text-lg font-bold text-success">
+                    {stats?.employesActifs || 0}
+                  </p>
+                  <p className="text-[9px] sm:text-[10px] text-muted-foreground">Actifs</p>
+                </div>
+                <div className="p-1.5 sm:p-2 bg-muted rounded-lg">
+                  <p className="text-sm sm:text-base lg:text-lg font-bold text-muted-foreground">
+                    {(stats?.totalEmployes || 0) - (stats?.employesActifs || 0)}
+                  </p>
+                  <p className="text-[9px] sm:text-[10px] text-muted-foreground">Inactifs</p>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Quick Actions */}
+          <Card className="p-2 sm:p-3 flex-shrink-0">
+            <h3 className="text-xs sm:text-sm font-semibold text-foreground mb-2">
+              Actions Rapides
+            </h3>
+            <div className="space-y-1.5 sm:space-y-2">
+              <button
+                onClick={() => navigate('/employes')}
+                className="w-full py-1.5 px-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-[10px] sm:text-xs font-medium transition-colors text-left"
+              >
+                → Voir tous les employés
+              </button>
+              <button
+                onClick={() => navigate('/demandes-conges')}
+                className="w-full py-1.5 px-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 rounded-lg text-[10px] sm:text-xs font-medium transition-colors text-left"
+              >
+                → Gérer les demandes
+              </button>
+            </div>
+          </Card>
+        </div>
       </div>
     </div>
   );

@@ -100,13 +100,14 @@ export default function ServiceModal({
           <div>
             <Label htmlFor="sousDirectionId">Sous-Direction *</Label>
             <Select
-              value={sousDirectionId?.toString()}
-              onValueChange={(value) => setValue('sousDirectionId', parseInt(value))}
+              value={sousDirectionId?.toString() || 'none'}
+              onValueChange={(value) => setValue('sousDirectionId', value === 'none' ? undefined as any : parseInt(value))}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Sélectionner une sous-direction" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="none">Sélectionner une sous-direction</SelectItem>
                 {sousDirectionsData?.data?.data?.map((sd: any) => (
                   <SelectItem key={sd.id} value={sd.id.toString()}>
                     {sd.code} - {sd.nom}

@@ -71,7 +71,7 @@ export default function StatutModal({
         <DialogHeader>
           <DialogTitle>Traiter la demande de congé</DialogTitle>
         </DialogHeader>
-        
+       
         {demande && (
           <div className="space-y-2 p-4 bg-muted rounded-lg mb-4">
             <p className="text-sm">
