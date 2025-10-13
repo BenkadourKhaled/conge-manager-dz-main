@@ -58,7 +58,10 @@ export default function Dashboard() {
     refetchInterval: 30000,
   });
 
-  const stats = statsData?.data?.data as DashboardStats;
+  // ✅ CORRECTION : dashboardApi retourne response.data, donc un seul niveau
+  const stats = statsData?.data as DashboardStats;
+
+  // ✅ CORRECTION : employesApi retourne la response complète, donc deux niveaux
   const employes = (employesData?.data?.data || []) as Employe[];
   const recentEmployes = employes.slice(0, 3);
 
@@ -218,35 +221,41 @@ export default function Dashboard() {
               Employés Récents
             </h3>
             <div className="flex-1 min-h-0 overflow-auto space-y-1.5 sm:space-y-2">
-              {recentEmployes.map((emp) => (
-                <div
-                  key={emp.id}
-                  className="flex items-center gap-2 p-1.5 sm:p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
-                  onClick={() => navigate('/employes')}
-                >
-                  <div className="flex-shrink-0">
-                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
-                      <span className="text-[10px] sm:text-xs font-semibold text-white">
-                        {emp.nom[0]}
-                        {emp.prenom[0]}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs sm:text-sm font-medium text-foreground truncate">
-                      {emp.nomComplet}
-                    </p>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
-                      {emp.matricule} • {emp.fonction}
-                    </p>
-                  </div>
+              {recentEmployes.length > 0 ? (
+                recentEmployes.map((emp) => (
                   <div
-                    className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${
-                      statutColors[emp.statut]
-                    } flex-shrink-0`}
-                  ></div>
+                    key={emp.id}
+                    className="flex items-center gap-2 p-1.5 sm:p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+                    onClick={() => navigate('/employes')}
+                  >
+                    <div className="flex-shrink-0">
+                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
+                        <span className="text-[10px] sm:text-xs font-semibold text-white">
+                          {emp.nom[0]}
+                          {emp.prenom[0]}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs sm:text-sm font-medium text-foreground truncate">
+                        {emp.nomComplet}
+                      </p>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
+                        {emp.matricule} • {emp.fonction}
+                      </p>
+                    </div>
+                    <div
+                      className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${
+                        statutColors[emp.statut]
+                      } flex-shrink-0`}
+                    ></div>
+                  </div>
+                ))
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  <p className="text-xs">Aucun employé</p>
                 </div>
-              ))}
+              )}
             </div>
           </Card>
         </div>
@@ -266,8 +275,12 @@ export default function Dashboard() {
                       {stat.value}
                     </p>
                   </div>
-                  <div className={`${stat.bg} p-1 sm:p-1.5 rounded-lg self-start sm:self-center flex-shrink-0`}>
-                    <stat.icon className={`h-3 w-3 sm:h-3.5 sm:w-3.5 ${stat.color}`} />
+                  <div
+                    className={`${stat.bg} p-1 sm:p-1.5 rounded-lg self-start sm:self-center flex-shrink-0`}
+                  >
+                    <stat.icon
+                      className={`h-3 w-3 sm:h-3.5 sm:w-3.5 ${stat.color}`}
+                    />
                   </div>
                 </div>
               </Card>
@@ -330,7 +343,9 @@ export default function Dashboard() {
                   <p className="text-[10px] sm:text-xs font-medium text-foreground truncate">
                     Demande approuvée
                   </p>
-                  <p className="text-[9px] sm:text-[10px] text-muted-foreground">Il y a 2h</p>
+                  <p className="text-[9px] sm:text-[10px] text-muted-foreground">
+                    Il y a 2h
+                  </p>
                 </div>
               </div>
               <div className="flex items-start gap-2">
@@ -339,7 +354,9 @@ export default function Dashboard() {
                   <p className="text-[10px] sm:text-xs font-medium text-foreground truncate">
                     Nouvelle demande
                   </p>
-                  <p className="text-[9px] sm:text-[10px] text-muted-foreground">Il y a 5h</p>
+                  <p className="text-[9px] sm:text-[10px] text-muted-foreground">
+                    Il y a 5h
+                  </p>
                 </div>
               </div>
               <div className="flex items-start gap-2">
@@ -348,7 +365,9 @@ export default function Dashboard() {
                   <p className="text-[10px] sm:text-xs font-medium text-foreground truncate">
                     Employé ajouté
                   </p>
-                  <p className="text-[9px] sm:text-[10px] text-muted-foreground">Il y a 1j</p>
+                  <p className="text-[9px] sm:text-[10px] text-muted-foreground">
+                    Il y a 1j
+                  </p>
                 </div>
               </div>
             </div>
@@ -363,7 +382,9 @@ export default function Dashboard() {
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <Award className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                  <h3 className="text-xs sm:text-sm font-semibold">Prime ICA</h3>
+                  <h3 className="text-xs sm:text-sm font-semibold">
+                    Prime ICA
+                  </h3>
                 </div>
                 <p className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1">
                   {stats?.beneficiairesICA || 0}
@@ -431,13 +452,17 @@ export default function Dashboard() {
                   <p className="text-sm sm:text-base lg:text-lg font-bold text-success">
                     {stats?.employesActifs || 0}
                   </p>
-                  <p className="text-[9px] sm:text-[10px] text-muted-foreground">Actifs</p>
+                  <p className="text-[9px] sm:text-[10px] text-muted-foreground">
+                    Actifs
+                  </p>
                 </div>
                 <div className="p-1.5 sm:p-2 bg-muted rounded-lg">
                   <p className="text-sm sm:text-base lg:text-lg font-bold text-muted-foreground">
                     {(stats?.totalEmployes || 0) - (stats?.employesActifs || 0)}
                   </p>
-                  <p className="text-[9px] sm:text-[10px] text-muted-foreground">Inactifs</p>
+                  <p className="text-[9px] sm:text-[10px] text-muted-foreground">
+                    Inactifs
+                  </p>
                 </div>
               </div>
             </div>

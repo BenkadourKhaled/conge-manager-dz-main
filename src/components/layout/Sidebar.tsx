@@ -9,31 +9,75 @@ import {
   UserCog,
   LogOut,
 } from 'lucide-react';
+import { FileText } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['ADMIN', 'MANAGER_RH', 'EMPLOYE_RH'] },
-  { name: 'Employés', href: '/employes', icon: Users, roles: ['ADMIN', 'MANAGER_RH', 'EMPLOYE_RH'] },
-  { name: 'Demandes de Congé', href: '/demandes-conges', icon: Calendar, roles: ['ADMIN', 'MANAGER_RH', 'EMPLOYE_RH'] },
-  { name: 'Suivi ICA', href: '/ica', icon: Award, roles: ['ADMIN', 'MANAGER_RH', 'EMPLOYE_RH'] },
-  { name: 'Sous-Directions', href: '/sous-directions', icon: Building2, roles: ['ADMIN', 'MANAGER_RH'] },
-  { name: 'Services', href: '/services', icon: Briefcase, roles: ['ADMIN', 'MANAGER_RH'] },
-  { name: 'Utilisateurs', href: '/utilisateurs', icon: UserCog, roles: ['ADMIN'] },
+  {
+    name: 'Dashboard',
+    href: '/dashboard',
+    icon: LayoutDashboard,
+    roles: ['ADMIN', 'MANAGER_RH', 'EMPLOYE_RH'],
+  },
+  {
+    name: 'Employés',
+    href: '/employes',
+    icon: Users,
+    roles: ['ADMIN', 'MANAGER_RH', 'EMPLOYE_RH'],
+  },
+  {
+    name: 'Demandes de Congé',
+    href: '/demandes-conges',
+    icon: Calendar,
+    roles: ['ADMIN', 'MANAGER_RH', 'EMPLOYE_RH'],
+  },
+  {
+    name: 'Suivi ICA',
+    href: '/ica',
+    icon: Award,
+    roles: ['ADMIN', 'MANAGER_RH', 'EMPLOYE_RH'],
+  },
+  {
+    name: 'Sous-Directions',
+    href: '/sous-directions',
+    icon: Building2,
+    roles: ['ADMIN', 'MANAGER_RH'],
+  },
+  {
+    name: 'Services',
+    href: '/services',
+    icon: Briefcase,
+    roles: ['ADMIN', 'MANAGER_RH'],
+  },
+  {
+    name: 'Utilisateurs',
+    href: '/utilisateurs',
+    icon: UserCog,
+    roles: ['ADMIN'],
+  },
+  {
+    name: 'Historique Congés',
+    icon: FileText,
+    href: '/historique-conges',
+    roles: ['ADMIN', 'MANAGER_RH'],
+  },
 ];
 
 export default function Sidebar() {
   const location = useLocation();
   const { user, logout } = useAuth();
 
-  const filteredNavigation = navigation.filter(item => 
-    user && item.roles.includes(user.role)
+  const filteredNavigation = navigation.filter(
+    (item) => user && item.roles.includes(user.role)
   );
 
   return (
     <div className="flex h-screen w-64 flex-col bg-sidebar">
       {/* Logo */}
       <div className="flex h-16 items-center border-b border-sidebar-border px-6">
-        <h1 className="text-xl font-bold text-sidebar-foreground">CNAS Constantine</h1>
+        <h1 className="text-xl font-bold text-sidebar-foreground">
+          CNAS Constantine
+        </h1>
       </div>
 
       {/* Navigation */}
@@ -60,8 +104,12 @@ export default function Sidebar() {
       {/* User Info & Logout */}
       <div className="border-t border-sidebar-border p-4">
         <div className="mb-3 rounded-lg bg-sidebar-accent p-3">
-          <p className="text-sm font-medium text-sidebar-accent-foreground">{user?.username}</p>
-          <p className="text-xs text-sidebar-accent-foreground/70">{user?.role}</p>
+          <p className="text-sm font-medium text-sidebar-accent-foreground">
+            {user?.username}
+          </p>
+          <p className="text-xs text-sidebar-accent-foreground/70">
+            {user?.role}
+          </p>
         </div>
         <button
           onClick={logout}
