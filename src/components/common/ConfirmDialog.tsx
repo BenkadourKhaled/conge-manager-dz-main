@@ -15,38 +15,38 @@ interface ConfirmDialogProps {
   onConfirm: () => void;
   title: string;
   description: string;
-  confirmText?: string;
-  cancelText?: string;
   variant?: 'default' | 'destructive';
 }
 
 export default function ConfirmDialog({
-  open,
-  onOpenChange,
-  onConfirm,
-  title,
-  description,
-  confirmText = 'Confirmer',
-  cancelText = 'Annuler',
-  variant = 'default',
-}: ConfirmDialogProps) {
+                                        open,
+                                        onOpenChange,
+                                        onConfirm,
+                                        title,
+                                        description,
+                                        variant = 'default',
+                                      }: ConfirmDialogProps) {
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>{title}</AlertDialogTitle>
-          <AlertDialogDescription>{description}</AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>{cancelText}</AlertDialogCancel>
-          <AlertDialogAction
-            onClick={onConfirm}
-            className={variant === 'destructive' ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : ''}
-          >
-            {confirmText}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+      <AlertDialog open={open} onOpenChange={onOpenChange}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{title}</AlertDialogTitle>
+            <AlertDialogDescription>{description}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+                onClick={onConfirm}
+                className={
+                  variant === 'destructive'
+                      ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                      : ''
+                }
+            >
+              Confirmer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
   );
 }

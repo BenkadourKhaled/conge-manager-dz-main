@@ -1,8 +1,25 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Plus,
   Eye,
@@ -10,15 +27,14 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
+  Calendar,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Filter,
+  TrendingUp,
+  Users,
 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -27,6 +43,7 @@ import DemandeCongeModal from '@/components/demandes/DemandeCongeModal';
 import StatutModal from '@/components/demandes/StatutModal';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import { useAuth } from '@/context/AuthContext';
+import { cn } from '@/lib/utils';
 
 interface DemandeConge {
   id: number;
@@ -40,38 +57,77 @@ interface DemandeConge {
   typeConge?: string;
   adressePendantConge?: string;
   remarque?: string;
+  employePhoto?: string;
+  employeService?: string;
 }
 
-const statutColors = {
-  EN_ATTENTE: 'bg-warning text-warning-foreground',
-  APPROUVE: 'bg-success text-success-foreground',
-  REJETE: 'bg-destructive text-destructive-foreground',
-  REPORTE: 'bg-secondary text-secondary-foreground',
+// Palette moderne et professionnelle - Indigo/Slate
+const COLORS = {
+  primary: 'indigo',
+  success: 'emerald',
+  warning: 'amber',
+  danger: 'rose',
+  neutral: 'slate',
 };
 
-const statutLabels = {
-  EN_ATTENTE: 'En Attente',
-  APPROUVE: 'Approuvé',
-  REJETE: 'Rejeté',
-  REPORTE: 'Reporté',
+const statutConfig = {
+  EN_ATTENTE: {
+    label: 'En attente',
+    icon: Clock,
+    color: 'text-amber-600',
+    bg: 'bg-amber-50',
+    badge: 'bg-amber-100 text-amber-700 border-amber-200',
+    dot: 'bg-amber-500',
+  },
+  APPROUVE: {
+    label: 'Approuvé',
+    icon: CheckCircle2,
+    color: 'text-emerald-600',
+    bg: 'bg-emerald-50',
+    badge: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+    dot: 'bg-emerald-500',
+  },
+  REJETE: {
+    label: 'Refusé',
+    icon: XCircle,
+    color: 'text-rose-600',
+    bg: 'bg-rose-50',
+    badge: 'bg-rose-100 text-rose-700 border-rose-200',
+    dot: 'bg-rose-500',
+  },
+  REPORTE: {
+    label: 'Reporté',
+    icon: Clock,
+    color: 'text-indigo-600',
+    bg: 'bg-indigo-50',
+    badge: 'bg-indigo-100 text-indigo-700 border-indigo-200',
+    dot: 'bg-indigo-500',
+  },
 };
 
-const ITEMS_PER_PAGE = 5;
+const typeCongeConfig = {
+  ANNUEL: { icon: '🏖️', label: 'Annuel', color: 'text-indigo-600' },
+  MALADIE: { icon: '🏥', label: 'Maladie', color: 'text-rose-600' },
+  EXCEPTIONNEL: { icon: '⭐', label: 'Exceptionnel', color: 'text-purple-600' },
+  SANS_SOLDE: { icon: '📋', label: 'Sans solde', color: 'text-slate-600' },
+};
+
+const ITEMS_PER_PAGE = 8; // Ultra-compact sans scroll
 
 export default function DemandesConges() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [statutModalOpen, setStatutModalOpen] = useState(false);
-  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [selectedDemande, setSelectedDemande] = useState<any>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statutFilter, setStatutFilter] = useState<string>('ALL');
   const [currentPage, setCurrentPage] = useState(1);
 
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: ['demandes-conges'],
     queryFn: () => demandesCongesApi.getAll(),
   });
@@ -80,25 +136,15 @@ export default function DemandesConges() {
 
   const createMutation = useMutation({
     mutationFn: demandesCongesApi.create,
-    onSuccess: (response) => {
-      console.log('✅ Demande créée avec succès:', response);
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['demandes-conges'] });
-      toast.success('Demande de congé créée avec succès');
+      toast.success('Demande créée avec succès');
       setCreateModalOpen(false);
     },
     onError: (error: any) => {
-      console.error('❌ Erreur lors de la création:', error);
-      console.error("📋 Détails de l'erreur:", {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-        statusText: error.response?.statusText,
+      toast.error('Erreur lors de la création', {
+        description: error.response?.data?.message,
       });
-
-      const errorMessage =
-        error.response?.data?.message ||
-        'Erreur lors de la création de la demande';
-      toast.error(errorMessage);
     },
   });
 
@@ -106,12 +152,11 @@ export default function DemandesConges() {
     mutationFn: ({ id, data }: any) => demandesCongesApi.updateStatut(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['demandes-conges'] });
-      toast.success('Statut mis à jour avec succès');
+      toast.success('Statut mis à jour');
       setStatutModalOpen(false);
-      setSelectedDemande(null);
     },
-    onError: () => {
-      toast.error('Erreur lors de la mise à jour');
+    onError: (error: any) => {
+      toast.error('Erreur', { description: error.response?.data?.message });
     },
   });
 
@@ -119,474 +164,353 @@ export default function DemandesConges() {
     mutationFn: demandesCongesApi.delete,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['demandes-conges'] });
-      toast.success('Demande supprimée avec succès');
+      toast.success('Demande supprimée');
       setDeleteDialogOpen(false);
-      setItemToDelete(null);
     },
-    onError: () => {
-      toast.error('Erreur lors de la suppression');
+    onError: (error: any) => {
+      toast.error('Erreur', { description: error.response?.data?.message });
     },
   });
 
-  const handleCreate = (data: any) => {
-    console.log('🚀 Tentative de création avec les données:', data);
-    console.log('🔍 Vérification des données:', {
-      employeIdEstUnNombre: typeof data.employeId === 'number',
-      employeIdValeur: data.employeId,
-      dateDebutFormat: data.dateDebut,
-      dateFinFormat: data.dateFin,
-      typeConge: data.typeConge,
-      anneeConge: data.anneeConge,
+  const filteredDemandes = useMemo(() => {
+    return demandes.filter((demande) => {
+      const matchesSearch =
+          searchTerm === '' ||
+          demande.employeNom.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          demande.employeMatricule.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatut = statutFilter === 'ALL' || demande.statut === statutFilter;
+      return matchesSearch && matchesStatut;
     });
-    createMutation.mutate(data);
-  };
+  }, [demandes, searchTerm, statutFilter]);
 
+  const totalPages = Math.ceil(filteredDemandes.length / ITEMS_PER_PAGE);
+  const paginatedDemandes = filteredDemandes.slice(
+      (currentPage - 1) * ITEMS_PER_PAGE,
+      currentPage * ITEMS_PER_PAGE
+  );
+
+  const stats = useMemo(() => {
+    return {
+      total: demandes.length,
+      enAttente: demandes.filter((d) => d.statut === 'EN_ATTENTE').length,
+      approuve: demandes.filter((d) => d.statut === 'APPROUVE').length,
+      rejete: demandes.filter((d) => d.statut === 'REJETE').length,
+    };
+  }, [demandes]);
+
+  const handleCreate = (data: any) => createMutation.mutate(data);
   const handleUpdateStatut = (data: any) => {
     if (selectedDemande) {
       updateStatutMutation.mutate({ id: selectedDemande.id, data });
     }
   };
-
-  const handleOpenStatutModal = (demande: any) => {
-    setSelectedDemande(demande);
-    setStatutModalOpen(true);
-  };
-
-  const handleOpenDetailsModal = (demande: any) => {
-    setSelectedDemande(demande);
-    setDetailsModalOpen(true);
-  };
-
   const handleDelete = (id: number) => {
     setItemToDelete(id);
     setDeleteDialogOpen(true);
   };
-
   const confirmDelete = () => {
     if (itemToDelete) {
       deleteMutation.mutate(itemToDelete);
+      setItemToDelete(null);
     }
   };
 
-  const canModifyStatut = user?.role === 'MANAGER_RH' || user?.role === 'ADMIN';
-
-  // Filtrage par matricule
-  const filteredDemandes = useMemo(() => {
-    if (!searchTerm) return demandes;
-
-    const searchLower = searchTerm.toLowerCase();
-    return demandes.filter((demande) =>
-      demande.employeMatricule.toLowerCase().includes(searchLower)
-    );
-  }, [demandes, searchTerm]);
-
-  // Pagination
-  const totalPages = Math.ceil(filteredDemandes.length / ITEMS_PER_PAGE);
-  const paginatedDemandes = useMemo(() => {
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    const endIndex = startIndex + ITEMS_PER_PAGE;
-    return filteredDemandes.slice(startIndex, endIndex);
-  }, [filteredDemandes, currentPage]);
-
-  // Reset pagination when search changes
-  useMemo(() => {
-    setCurrentPage(1);
-  }, [searchTerm]);
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">
-            Chargement des demandes...
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="h-[calc(100vh-4rem)] overflow-hidden flex flex-col gap-3 p-4">
-      {/* Header */}
-      <div className="flex-shrink-0 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">
-            Demandes de Congé
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {filteredDemandes.length} demandes affichées sur {demandes.length}
-          </p>
-        </div>
-        <Button
-          size="sm"
-          className="gap-2"
-          onClick={() => setCreateModalOpen(true)}
-        >
-          <Plus className="h-4 w-4" />
-          Nouvelle Demande
-        </Button>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="flex-shrink-0 grid grid-cols-4 gap-3">
-        {Object.entries(statutLabels).map(([key, label]) => {
-          const count = demandes.filter((d) => d.statut === key).length;
-          return (
-            <Card key={key} className="p-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground">{label}</p>
-                  <p className="text-xl font-bold text-foreground">{count}</p>
+      <div className="h-screen flex flex-col bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 overflow-hidden">
+        {/* Header Compact */}
+        <div className="flex-none border-b bg-white/80 backdrop-blur-sm shadow-sm">
+          <div className="max-w-[1600px] mx-auto px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="p-2 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 shadow-lg">
+                  <Calendar className="h-5 w-5 text-white" />
                 </div>
-                <Badge
-                  className={statutColors[key as keyof typeof statutColors]}
-                >
-                  {label}
-                </Badge>
+                <div>
+                  <h1 className="text-xl font-bold text-slate-900">Gestion des Congés</h1>
+                  <p className="text-xs text-slate-600">Vue d'ensemble et suivi</p>
+                </div>
               </div>
-            </Card>
-          );
-        })}
-      </div>
-
-      {/* Search Bar */}
-      <Card className="flex-shrink-0 p-3">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Rechercher par matricule..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
+              <Button
+                  onClick={() => setCreateModalOpen(true)}
+                  className="bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white shadow-lg shadow-indigo-500/30 gap-2 h-10"
+              >
+                <Plus className="h-4 w-4" />
+                Nouvelle demande
+              </Button>
+            </div>
+          </div>
         </div>
-      </Card>
 
-      {/* Demandes Table */}
-      <Card className="flex-1 min-h-0 flex flex-col">
-        <div className="flex-1 min-h-0 flex flex-col">
-          {paginatedDemandes.length > 0 ? (
-            <>
-              <div className="flex-1 min-h-0 overflow-auto">
-                <table className="w-full">
-                  <thead className="bg-muted sticky top-0">
-                    <tr>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Employé
-                      </th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Matricule
-                      </th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Date Début
-                      </th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Date Fin
-                      </th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Nb Jours
-                      </th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Statut
-                      </th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-card divide-y divide-border">
-                    {paginatedDemandes.map((demande) => (
-                      <tr
-                        key={demande.id}
-                        className="hover:bg-muted/50 transition-colors"
-                      >
-                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-foreground">
-                          {demande.employeNom}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground">
-                          {demande.employeMatricule}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-foreground">
-                          {format(new Date(demande.dateDebut), 'dd MMM yyyy', {
-                            locale: fr,
-                          })}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-foreground">
-                          {format(new Date(demande.dateFin), 'dd MMM yyyy', {
-                            locale: fr,
-                          })}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-foreground">
-                          {demande.nombreJours}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <Badge className={statutColors[demande.statut]}>
-                            {statutLabels[demande.statut]}
-                          </Badge>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm">
-                          <div className="flex items-center gap-2">
+        {/* Content Area - Fixed Height */}
+        <div className="flex-1 overflow-hidden">
+          <div className="h-full max-w-[1600px] mx-auto px-6 py-4 flex flex-col gap-4">
+            {/* Stats Compacts */}
+            <div className="flex-none grid grid-cols-4 gap-3">
+              <Card className="border-slate-200 hover:shadow-md transition-all duration-300 group">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-medium text-slate-600 mb-1">Total</p>
+                      <p className="text-2xl font-bold text-slate-900">{stats.total}</p>
+                    </div>
+                    <div className="p-2.5 bg-slate-100 rounded-lg group-hover:bg-slate-200 transition-colors">
+                      <Users className="h-5 w-5 text-slate-600" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-amber-200 hover:shadow-md transition-all duration-300 group">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-medium text-amber-600 mb-1">En attente</p>
+                      <p className="text-2xl font-bold text-amber-700">{stats.enAttente}</p>
+                    </div>
+                    <div className="p-2.5 bg-amber-100 rounded-lg group-hover:bg-amber-200 transition-colors">
+                      <Clock className="h-5 w-5 text-amber-600" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-emerald-200 hover:shadow-md transition-all duration-300 group">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-medium text-emerald-600 mb-1">Approuvés</p>
+                      <p className="text-2xl font-bold text-emerald-700">{stats.approuve}</p>
+                    </div>
+                    <div className="p-2.5 bg-emerald-100 rounded-lg group-hover:bg-emerald-200 transition-colors">
+                      <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-rose-200 hover:shadow-md transition-all duration-300 group">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-medium text-rose-600 mb-1">Refusés</p>
+                      <p className="text-2xl font-bold text-rose-700">{stats.rejete}</p>
+                    </div>
+                    <div className="p-2.5 bg-rose-100 rounded-lg group-hover:bg-rose-200 transition-colors">
+                      <XCircle className="h-5 w-5 text-rose-600" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Filters Compact */}
+            <div className="flex-none flex items-center gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Input
+                    placeholder="Rechercher..."
+                    value={searchTerm}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="pl-10 h-9 border-slate-200 focus:border-indigo-400 focus:ring-indigo-400/20"
+                />
+              </div>
+              <Select value={statutFilter} onValueChange={(value) => { setStatutFilter(value); setCurrentPage(1); }}>
+                <SelectTrigger className="w-[180px] h-9 border-slate-200">
+                  <div className="flex items-center gap-2">
+                    <Filter className="h-4 w-4" />
+                    <SelectValue />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">Tous</SelectItem>
+                  <SelectItem value="EN_ATTENTE">En attente</SelectItem>
+                  <SelectItem value="APPROUVE">Approuvé</SelectItem>
+                  <SelectItem value="REJETE">Refusé</SelectItem>
+                  <SelectItem value="REPORTE">Reporté</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Table - SANS SCROLL - 5 lignes fixes */}
+            <div className="flex-1 min-h-0">
+              <Card className="h-full border-slate-200 shadow-sm">
+                <div className="h-full flex flex-col">
+                  <div className="flex-1">
+                    <Table>
+                      <TableHeader className="sticky top-0 bg-slate-50 border-b z-10">
+                        <TableRow className="hover:bg-slate-50">
+                          <TableHead className="font-semibold text-slate-700">Employé</TableHead>
+                          <TableHead className="font-semibold text-slate-700">Type</TableHead>
+                          <TableHead className="font-semibold text-slate-700">Période</TableHead>
+                          <TableHead className="font-semibold text-slate-700 text-center">Durée</TableHead>
+                          <TableHead className="font-semibold text-slate-700">Statut</TableHead>
+                          <TableHead className="font-semibold text-slate-700 text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {isLoading ? (
+                            <TableRow>
+                              <TableCell colSpan={6} className="text-center py-12">
+                                <div className="flex flex-col items-center gap-2">
+                                  <div className="h-8 w-8 border-3 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+                                  <p className="text-sm text-slate-600">Chargement...</p>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                        ) : paginatedDemandes.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={6} className="text-center py-12">
+                                <Calendar className="h-12 w-12 mx-auto text-slate-300 mb-2" />
+                                <p className="text-slate-600">Aucune demande</p>
+                              </TableCell>
+                            </TableRow>
+                        ) : (
+                            paginatedDemandes.map((demande) => {
+                              const StatutIcon = statutConfig[demande.statut].icon;
+                              return (
+                                  <TableRow key={demande.id} className="hover:bg-slate-50/50 transition-colors">
+                                    <TableCell>
+                                      <div className="flex items-center gap-3">
+                                        <Avatar className="h-9 w-9 border-2 border-slate-200">
+                                          <AvatarImage src={demande.employePhoto} />
+                                          <AvatarFallback className="bg-indigo-100 text-indigo-700 text-xs font-semibold">
+                                            {demande.employeNom?.split(' ').map((n) => n[0]).join('').substring(0, 2).toUpperCase()}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                        <div className="min-w-0">
+                                          <p className="font-medium text-slate-900 text-sm truncate">{demande.employeNom}</p>
+                                          <p className="text-xs text-slate-500 truncate">{demande.employeMatricule}</p>
+                                        </div>
+                                      </div>
+                                    </TableCell>
+                                    <TableCell>
+                                      {demande.typeConge && (
+                                          <div className="flex items-center gap-1.5">
+                                            <span className="text-base">{typeCongeConfig[demande.typeConge as keyof typeof typeCongeConfig]?.icon}</span>
+                                            <span className={cn(
+                                                'text-xs font-medium',
+                                                typeCongeConfig[demande.typeConge as keyof typeof typeCongeConfig]?.color
+                                            )}>
+                                      {typeCongeConfig[demande.typeConge as keyof typeof typeCongeConfig]?.label}
+                                    </span>
+                                          </div>
+                                      )}
+                                    </TableCell>
+                                    <TableCell>
+                                      <div className="text-xs space-y-0.5">
+                                        <div className="font-medium text-slate-900">
+                                          {format(new Date(demande.dateDebut), 'dd MMM', { locale: fr })}
+                                        </div>
+                                        <div className="text-slate-500">
+                                          {format(new Date(demande.dateFin), 'dd MMM yy', { locale: fr })}
+                                        </div>
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                <span className="inline-flex items-center justify-center min-w-[3rem] px-2 py-1 rounded-md bg-indigo-50 text-indigo-700 font-bold text-sm">
+                                  {demande.nombreJours}j
+                                </span>
+                                    </TableCell>
+                                    <TableCell>
+                                      <Badge className={cn('font-medium text-xs border', statutConfig[demande.statut].badge)}>
+                                        <span className={cn('h-1.5 w-1.5 rounded-full mr-1.5', statutConfig[demande.statut].dot)} />
+                                        {statutConfig[demande.statut].label}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                      <div className="flex items-center justify-end gap-1">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => {
+                                              setSelectedDemande(demande);
+                                              setStatutModalOpen(true);
+                                            }}
+                                            className="h-8 w-8 p-0 hover:bg-indigo-50 text-indigo-600"
+                                        >
+                                          <Eye className="h-3.5 w-3.5" />
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => handleDelete(demande.id)}
+                                            className="h-8 w-8 p-0 hover:bg-rose-50 text-rose-600"
+                                        >
+                                          <Trash2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                              );
+                            })
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {/* Pagination Compact */}
+                  {totalPages > 1 && (
+                      <div className="flex-none border-t bg-slate-50 px-4 py-2.5">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-slate-600">
+                            Page <span className="font-medium">{currentPage}</span> sur <span className="font-medium">{totalPages}</span>
+                          </p>
+                          <div className="flex gap-1.5">
                             <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleOpenDetailsModal(demande)}
-                              title="Voir les détails"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                className="h-8 w-8 p-0"
                             >
-                              <Eye className="h-4 w-4" />
+                              <ChevronLeft className="h-4 w-4" />
                             </Button>
-                            {canModifyStatut &&
-                              demande.statut === 'EN_ATTENTE' && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleOpenStatutModal(demande)}
-                                >
-                                  Traiter
-                                </Button>
-                              )}
                             <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleDelete(demande.id)}
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                                disabled={currentPage === totalPages}
+                                className="h-8 w-8 p-0"
                             >
-                              <Trash2 className="h-4 w-4 text-destructive" />
+                              <ChevronRight className="h-4 w-4" />
                             </Button>
                           </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-t border-border">
-                  <div className="text-sm text-muted-foreground">
-                    Affichage de {(currentPage - 1) * ITEMS_PER_PAGE + 1} à{' '}
-                    {Math.min(
-                      currentPage * ITEMS_PER_PAGE,
-                      filteredDemandes.length
-                    )}{' '}
-                    sur {filteredDemandes.length} demandes
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        setCurrentPage((prev) => Math.max(1, prev - 1))
-                      }
-                      disabled={currentPage === 1}
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                      Précédent
-                    </Button>
-
-                    <div className="flex items-center gap-1">
-                      {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                        (page) => {
-                          if (
-                            page === 1 ||
-                            page === totalPages ||
-                            (page >= currentPage - 1 && page <= currentPage + 1)
-                          ) {
-                            return (
-                              <Button
-                                key={page}
-                                variant={
-                                  currentPage === page ? 'default' : 'outline'
-                                }
-                                size="sm"
-                                onClick={() => setCurrentPage(page)}
-                                className="w-10"
-                              >
-                                {page}
-                              </Button>
-                            );
-                          } else if (
-                            page === currentPage - 2 ||
-                            page === currentPage + 2
-                          ) {
-                            return (
-                              <span key={page} className="px-2">
-                                ...
-                              </span>
-                            );
-                          }
-                          return null;
-                        }
-                      )}
-                    </div>
-
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        setCurrentPage((prev) => Math.min(totalPages, prev + 1))
-                      }
-                      disabled={currentPage === totalPages}
-                    >
-                      Suivant
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
+                        </div>
+                      </div>
+                  )}
                 </div>
-              )}
-            </>
-          ) : (
-            <div className="flex items-center justify-center flex-1 text-muted-foreground">
-              <div className="text-center">
-                <Search className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p>Aucune demande trouvée</p>
-                <p className="text-sm mt-1">
-                  Essayez de modifier votre recherche
-                </p>
-              </div>
+              </Card>
             </div>
-          )}
+          </div>
         </div>
-      </Card>
 
-      {/* Modals */}
-      <DemandeCongeModal
-        open={createModalOpen}
-        onOpenChange={setCreateModalOpen}
-        onSubmit={handleCreate}
-        isLoading={createMutation.isPending}
-      />
+        {/* Modals */}
+        <DemandeCongeModal
+            open={createModalOpen}
+            onOpenChange={setCreateModalOpen}
+            onSubmit={handleCreate}
+            isLoading={createMutation.isPending}
+        />
 
-      <StatutModal
-        open={statutModalOpen}
-        onOpenChange={setStatutModalOpen}
-        onSubmit={handleUpdateStatut}
-        demande={selectedDemande}
-        isLoading={updateStatutMutation.isPending}
-      />
+        <StatutModal
+            open={statutModalOpen}
+            onOpenChange={setStatutModalOpen}
+            onSubmit={handleUpdateStatut}
+            demande={selectedDemande}
+            isLoading={updateStatutMutation.isPending}
+        />
 
-      {/* Details Modal */}
-      {selectedDemande && (
-        <Dialog open={detailsModalOpen} onOpenChange={setDetailsModalOpen}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Détails de la demande de congé</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Employé
-                  </p>
-                  <p className="text-base font-semibold">
-                    {selectedDemande.employeNom}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Matricule
-                  </p>
-                  <p className="text-base font-semibold">
-                    {selectedDemande.employeMatricule}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Date de début
-                  </p>
-                  <p className="text-base">
-                    {format(
-                      new Date(selectedDemande.dateDebut),
-                      'dd MMMM yyyy',
-                      { locale: fr }
-                    )}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Date de fin
-                  </p>
-                  <p className="text-base">
-                    {format(new Date(selectedDemande.dateFin), 'dd MMMM yyyy', {
-                      locale: fr,
-                    })}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Nombre de jours
-                  </p>
-                  <p className="text-base font-semibold text-primary">
-                    {selectedDemande.nombreJours} jours
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Statut
-                  </p>
-                  <Badge className={statutColors[selectedDemande.statut]}>
-                    {statutLabels[selectedDemande.statut]}
-                  </Badge>
-                </div>
-                {selectedDemande.typeConge && (
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Type de congé
-                    </p>
-                    <p className="text-base">{selectedDemande.typeConge}</p>
-                  </div>
-                )}
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Date de création
-                  </p>
-                  <p className="text-base">
-                    {format(
-                      new Date(selectedDemande.dateCreation),
-                      'dd MMMM yyyy',
-                      { locale: fr }
-                    )}
-                  </p>
-                </div>
-              </div>
-
-              {selectedDemande.adressePendantConge && (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">
-                    Adresse pendant le congé
-                  </p>
-                  <p className="text-base p-3 bg-muted rounded-lg">
-                    {selectedDemande.adressePendantConge}
-                  </p>
-                </div>
-              )}
-
-              {selectedDemande.remarque && (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">
-                    Remarque
-                  </p>
-                  <p className="text-base p-3 bg-muted rounded-lg">
-                    {selectedDemande.remarque}
-                  </p>
-                </div>
-              )}
-            </div>
-            <DialogFooter>
-              <Button onClick={() => setDetailsModalOpen(false)}>Fermer</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
-
-      <ConfirmDialog
-        open={deleteDialogOpen}
-        onOpenChange={setDeleteDialogOpen}
-        onConfirm={confirmDelete}
-        title="Supprimer la demande"
-        description="Êtes-vous sûr de vouloir supprimer cette demande ? Cette action est irréversible."
-        variant="destructive"
-      />
-    </div>
+        <ConfirmDialog
+            open={deleteDialogOpen}
+            onOpenChange={setDeleteDialogOpen}
+            onConfirm={confirmDelete}
+            title="Supprimer la demande"
+            description="Cette action est irréversible."
+            variant="destructive"
+        />
+      </div>
   );
 }

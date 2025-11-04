@@ -35,7 +35,7 @@ const navigation = [
     name: 'Suivi ICA',
     href: '/ica',
     icon: Award,
-    roles: ['ADMIN', 'MANAGER_RH', 'EMPLOYE_RH'],
+    roles: [],
   },
   {
     name: 'Sous-Directions',
@@ -59,7 +59,7 @@ const navigation = [
     name: 'Historique Congés',
     icon: FileText,
     href: '/historique-conges',
-    roles: ['ADMIN', 'MANAGER_RH'],
+    roles: ['EMPLOYE_RH', 'ADMIN', 'MANAGER_RH'],
   },
 ];
 
