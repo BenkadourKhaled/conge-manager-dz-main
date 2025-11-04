@@ -17,7 +17,6 @@ import {
   Filter,
   Download,
 } from 'lucide-react';
-import Sidebar from '@/components/layout/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -135,11 +134,9 @@ export default function AuditTrail() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gradient-to-br from-background to-muted/20">
-      <Sidebar />
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Header */}
-        <div className="flex-shrink-0 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <div className="h-[calc(100vh-4rem)] overflow-hidden bg-gradient-to-br from-background to-muted/20 flex flex-col">
+      {/* Header */}
+      <div className="flex-shrink-0 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="flex items-center justify-between p-6">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-primary/10 rounded-lg">
@@ -159,8 +156,8 @@ export default function AuditTrail() {
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="flex-shrink-0 border-b bg-background p-4">
+      {/* Filters */}
+      <div className="flex-shrink-0 border-b bg-background p-4">
           <div className="flex flex-wrap gap-3">
             <div className="flex-1 min-w-[300px] relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -203,8 +200,8 @@ export default function AuditTrail() {
           </div>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-auto p-6">
+      {/* Content */}
+      <div className="flex-1 overflow-auto p-6">
           <Card className="border-2">
             <CardHeader>
               <CardTitle className="text-lg">
@@ -304,7 +301,6 @@ export default function AuditTrail() {
               )}
             </CardContent>
           </Card>
-        </div>
       </div>
     </div>
   );
