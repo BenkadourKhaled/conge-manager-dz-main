@@ -8,8 +8,9 @@ import {
   Award,
   UserCog,
   LogOut,
+  FileText,
+  Shield,
 } from 'lucide-react';
-import { FileText } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 const navigation = [
@@ -35,7 +36,13 @@ const navigation = [
     name: 'Suivi ICA',
     href: '/ica',
     icon: Award,
-    roles: [],
+    roles: ['ADMIN', 'MANAGER_RH', 'EMPLOYE_RH'],
+  },
+  {
+    name: 'Historique Congés',
+    icon: FileText,
+    href: '/historique-conges',
+    roles: ['EMPLOYE_RH', 'ADMIN', 'MANAGER_RH'],
   },
   {
     name: 'Sous-Directions',
@@ -56,10 +63,10 @@ const navigation = [
     roles: ['ADMIN'],
   },
   {
-    name: 'Historique Congés',
-    icon: FileText,
-    href: '/historique-conges',
-    roles: ['EMPLOYE_RH', 'ADMIN', 'MANAGER_RH'],
+    name: 'Journal d\'Audit',
+    href: '/audit',
+    icon: Shield,
+    roles: ['ADMIN', 'MANAGER_RH'],
   },
 ];
 
