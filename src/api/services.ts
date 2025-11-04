@@ -1,91 +1,111 @@
 import api from './axios';
-
-// Types pour typage fort
-export interface ApiResponse<T> {
-  success: boolean;
-  message: string;
-  data: T;
-  timestamp: string;
-}
-
-export interface PaginatedResponse<T> {
-  content: T[];
-  totalElements: number;
-  totalPages: number;
-  size: number;
-  number: number;
-}
+import type {
+  ApiResponse,
+  SousDirectionResponse,
+  SousDirectionRequest,
+  ServiceResponse,
+  ServiceRequest,
+  EmployeResponse,
+  EmployeRequest,
+  DemandeCongeResponse,
+  DemandeCongeRequest,
+  StatutDemandeRequest,
+  SuiviICAResponse,
+  StatistiquesICAResponse,
+  DashboardStatsResponse,
+  HistoriqueCongeResponse,
+  HistoriqueCongeRequest,
+  UserResponse,
+  UserRequest,
+  AuditTrailResponse,
+  AuditSearchRequest,
+  PaginatedResponse,
+  UserRole,
+} from '@/types/api.types';
 
 // Sous-Directions
 export const sousDirectionsApi = {
-  getAll: () => api.get<ApiResponse<any[]>>('/sous-directions'),
-  getById: (id: number) => api.get<ApiResponse<any>>(`/sous-directions/${id}`),
-  create: (data: any) => api.post<ApiResponse<any>>('/sous-directions', data),
-  update: (id: number, data: any) => api.put<ApiResponse<any>>(`/sous-directions/${id}`, data),
+  getAll: () => api.get<ApiResponse<SousDirectionResponse[]>>('/sous-directions'),
+  getById: (id: number) => api.get<ApiResponse<SousDirectionResponse>>(`/sous-directions/${id}`),
+  create: (data: SousDirectionRequest) =>
+    api.post<ApiResponse<SousDirectionResponse>>('/sous-directions', data),
+  update: (id: number, data: SousDirectionRequest) =>
+    api.put<ApiResponse<SousDirectionResponse>>(`/sous-directions/${id}`, data),
   delete: (id: number) => api.delete<ApiResponse<void>>(`/sous-directions/${id}`),
 };
 
 // Services
 export const servicesApi = {
-  getAll: () => api.get<ApiResponse<any[]>>('/services'),
-  getById: (id: number) => api.get<ApiResponse<any>>(`/services/${id}`),
-  create: (data: any) => api.post<ApiResponse<any>>('/services', data),
-  update: (id: number, data: any) => api.put<ApiResponse<any>>(`/services/${id}`, data),
+  getAll: () => api.get<ApiResponse<ServiceResponse[]>>('/services'),
+  getById: (id: number) => api.get<ApiResponse<ServiceResponse>>(`/services/${id}`),
+  create: (data: ServiceRequest) => api.post<ApiResponse<ServiceResponse>>('/services', data),
+  update: (id: number, data: ServiceRequest) =>
+    api.put<ApiResponse<ServiceResponse>>(`/services/${id}`, data),
   delete: (id: number) => api.delete<ApiResponse<void>>(`/services/${id}`),
 };
 
 // Employés
 export const employesApi = {
-  getAll: () => api.get<ApiResponse<any[]>>('/employes'),
-  getById: (id: number) => api.get<ApiResponse<any>>(`/employes/${id}`),
-  create: (data: any) => api.post<ApiResponse<any>>('/employes', data),
-  update: (id: number, data: any) => api.put<ApiResponse<any>>(`/employes/${id}`, data),
+  getAll: () => api.get<ApiResponse<EmployeResponse[]>>('/employes'),
+  getById: (id: number) => api.get<ApiResponse<EmployeResponse>>(`/employes/${id}`),
+  create: (data: EmployeRequest) => api.post<ApiResponse<EmployeResponse>>('/employes', data),
+  update: (id: number, data: EmployeRequest) =>
+    api.put<ApiResponse<EmployeResponse>>(`/employes/${id}`, data),
   delete: (id: number) => api.delete<ApiResponse<void>>(`/employes/${id}`),
   search: (keyword: string) =>
-      api.get<ApiResponse<any[]>>('/employes/search', { params: { keyword } }),
+    api.get<ApiResponse<EmployeResponse[]>>('/employes/search', { params: { keyword } }),
 };
 
 // Demandes de Congé
 export const demandesCongesApi = {
-  getAll: () => api.get<ApiResponse<any[]>>('/demandes-conges'),
-  getById: (id: number) => api.get<ApiResponse<any>>(`/demandes-conges/${id}`),
-  create: (data: any) => api.post<ApiResponse<any>>('/demandes-conges', data),
+  getAll: () => api.get<ApiResponse<DemandeCongeResponse[]>>('/demandes-conges'),
+  getById: (id: number) => api.get<ApiResponse<DemandeCongeResponse>>(`/demandes-conges/${id}`),
+  create: (data: DemandeCongeRequest) =>
+    api.post<ApiResponse<DemandeCongeResponse>>('/demandes-conges', data),
   delete: (id: number) => api.delete<ApiResponse<void>>(`/demandes-conges/${id}`),
-  updateStatut: (id: number, data: any) =>
-      api.put<ApiResponse<any>>(`/demandes-conges/${id}/statut`, data),
-  getEnAttente: () => api.get<ApiResponse<any[]>>('/demandes-conges/en-attente'),
+  updateStatut: (id: number, data: StatutDemandeRequest) =>
+    api.put<ApiResponse<DemandeCongeResponse>>(`/demandes-conges/${id}/statut`, data),
+  getEnAttente: () => api.get<ApiResponse<DemandeCongeResponse[]>>('/demandes-conges/en-attente'),
 };
 
 // ICA (Prime)
 export const icaApi = {
   getSuiviComplet: async (annee?: number) => {
-    const response = await api.get('/ica/suivi', { params: { annee } });
+    const response = await api.get<ApiResponse<SuiviICAResponse[]>>('/ica/suivi', {
+      params: { annee },
+    });
     return response.data;
   },
   getSuiviParSousDirection: async (sousDirectionId: number, annee?: number) => {
-    const response = await api.get(`/ica/suivi/sous-direction/${sousDirectionId}`, {
-      params: { annee },
-    });
+    const response = await api.get<ApiResponse<SuiviICAResponse[]>>(
+      `/ica/suivi/sous-direction/${sousDirectionId}`,
+      { params: { annee } }
+    );
     return response.data;
   },
   getSuiviParService: async (serviceId: number, annee?: number) => {
-    const response = await api.get(`/ica/suivi/service/${serviceId}`, {
+    const response = await api.get<ApiResponse<SuiviICAResponse[]>>(
+      `/ica/suivi/service/${serviceId}`,
+      { params: { annee } }
+    );
+    return response.data;
+  },
+  getStatistiques: async (annee?: number) => {
+    const response = await api.get<ApiResponse<StatistiquesICAResponse>>('/ica/statistiques', {
       params: { annee },
     });
     return response.data;
   },
-  getStatistiques: async (annee?: number) => {
-    const response = await api.get('/ica/statistiques', { params: { annee } });
-    return response.data;
-  },
   getSuiviEmploye: async (employeId: number, annee?: number) => {
-    const response = await api.get(`/ica/employe/${employeId}`, {
+    const response = await api.get<ApiResponse<SuiviICAResponse>>(`/ica/employe/${employeId}`, {
       params: { annee },
     });
     return response.data;
   },
   getEligibles: async (annee?: number) => {
-    const response = await api.get('/ica/eligibles', { params: { annee } });
+    const response = await api.get<ApiResponse<SuiviICAResponse[]>>('/ica/eligibles', {
+      params: { annee },
+    });
     return response.data;
   },
 };
@@ -93,7 +113,7 @@ export const icaApi = {
 // Dashboard
 export const dashboardApi = {
   getStatistics: async () => {
-    const response = await api.get('/dashboard/statistics');
+    const response = await api.get<ApiResponse<DashboardStatsResponse>>('/dashboard/statistics');
     return response.data;
   },
 };
@@ -101,52 +121,70 @@ export const dashboardApi = {
 // Historique Congés
 export const historiqueCongesApi = {
   getAll: async () => {
-    const response = await api.get('/historique-conges');
+    const response = await api.get<ApiResponse<HistoriqueCongeResponse[]>>('/historique-conges');
     return response.data;
   },
   getById: async (id: number) => {
-    const response = await api.get(`/historique-conges/${id}`);
+    const response = await api.get<ApiResponse<HistoriqueCongeResponse>>(
+      `/historique-conges/${id}`
+    );
     return response.data;
   },
   getByEmployeId: async (employeId: number) => {
-    const response = await api.get(`/historique-conges/employe/${employeId}`);
+    const response = await api.get<ApiResponse<HistoriqueCongeResponse[]>>(
+      `/historique-conges/employe/${employeId}`
+    );
     return response.data;
   },
   getByAnnee: async (annee: number) => {
-    const response = await api.get(`/historique-conges/annee/${annee}`);
+    const response = await api.get<ApiResponse<HistoriqueCongeResponse[]>>(
+      `/historique-conges/annee/${annee}`
+    );
     return response.data;
   },
-  create: async (data: any) => {
-    const response = await api.post('/historique-conges', data);
+  create: async (data: HistoriqueCongeRequest) => {
+    const response = await api.post<ApiResponse<HistoriqueCongeResponse>>(
+      '/historique-conges',
+      data
+    );
     return response.data;
   },
-  update: async (id: number, data: any) => {
-    const response = await api.put(`/historique-conges/${id}`, data);
+  update: async (id: number, data: HistoriqueCongeRequest) => {
+    const response = await api.put<ApiResponse<HistoriqueCongeResponse>>(
+      `/historique-conges/${id}`,
+      data
+    );
     return response.data;
   },
   delete: async (id: number) => {
-    const response = await api.delete(`/historique-conges/${id}`);
+    const response = await api.delete<ApiResponse<void>>(`/historique-conges/${id}`);
     return response.data;
   },
   ajusterJours: async (
-      id: number,
-      data: { typeAjustement: string; nombreJours: number; motif: string }
+    id: number,
+    data: { typeAjustement: string; nombreJours: number; motif: string }
   ) => {
     let ajustement = data.nombreJours;
     if (data.typeAjustement === 'RETRAIT') {
       ajustement = -ajustement;
     }
 
-    const response = await api.put(`/historique-conges/${id}/ajuster`, null, {
-      params: {
-        ajustement: ajustement,
-        remarque: data.motif,
-      },
-    });
+    const response = await api.put<ApiResponse<HistoriqueCongeResponse>>(
+      `/historique-conges/${id}/ajuster`,
+      null,
+      {
+        params: {
+          ajustement: ajustement,
+          remarque: data.motif,
+        },
+      }
+    );
     return response.data;
   },
   recalculateICA: async (id: number) => {
-    const response = await api.put(`/historique-conges/${id}/recalculer-ica`);
+    const response = await api.put<ApiResponse<HistoriqueCongeResponse>>(
+      `/historique-conges/${id}/recalculer-ica`
+    );
     return response.data;
   },
   recalculateICABulk: async (ids: number[]) => {
@@ -155,10 +193,10 @@ export const historiqueCongesApi = {
     }
 
     const promises = ids.map((id) =>
-        api
-            .put(`/historique-conges/${id}/recalculer-ica`)
-            .then((response) => ({ success: true, id, data: response.data }))
-            .catch((error) => ({ success: false, id, error: error.message }))
+      api
+        .put<ApiResponse<HistoriqueCongeResponse>>(`/historique-conges/${id}/recalculer-ica`)
+        .then((response) => ({ success: true, id, data: response.data }))
+        .catch((error: Error) => ({ success: false, id, error: error.message }))
     );
 
     const results = await Promise.all(promises);
@@ -175,27 +213,27 @@ export const historiqueCongesApi = {
 // Utilisateurs (ADMIN uniquement)
 export const usersApi = {
   getAll: async () => {
-    const response = await api.get('/users');
+    const response = await api.get<ApiResponse<UserResponse[]>>('/users');
     return response.data;
   },
   getById: async (id: number) => {
-    const response = await api.get(`/users/${id}`);
+    const response = await api.get<ApiResponse<UserResponse>>(`/users/${id}`);
     return response.data;
   },
-  create: async (data: any) => {
-    const response = await api.post('/users', data);
+  create: async (data: UserRequest) => {
+    const response = await api.post<ApiResponse<UserResponse>>('/users', data);
     return response.data;
   },
-  update: async (id: number, data: any) => {
-    const response = await api.put(`/users/${id}`, data);
+  update: async (id: number, data: UserRequest) => {
+    const response = await api.put<ApiResponse<UserResponse>>(`/users/${id}`, data);
     return response.data;
   },
   delete: async (id: number) => {
-    const response = await api.delete(`/users/${id}`);
+    const response = await api.delete<ApiResponse<void>>(`/users/${id}`);
     return response.data;
   },
-  updateRole: async (id: number, role: 'ADMIN' | 'MANAGER_RH' | 'EMPLOYE_RH') => {
-    const response = await api.put(`/users/${id}/role`, null, {
+  updateRole: async (id: number, role: UserRole) => {
+    const response = await api.put<ApiResponse<UserResponse>>(`/users/${id}/role`, null, {
       params: { role },
     });
     return response.data;
@@ -206,6 +244,42 @@ export const usersApi = {
 export const authApi = {
   login: async (username: string, password: string) => {
     const response = await api.post('/auth/login', { username, password });
+    return response.data;
+  },
+};
+
+// Audit Trail
+export const auditApi = {
+  getRecent: async () => {
+    const response = await api.get<ApiResponse<AuditTrailResponse[]>>('/audit/recent');
+    return response.data;
+  },
+  getMyActivity: async (page = 0, size = 20) => {
+    const response = await api.get<ApiResponse<PaginatedResponse<AuditTrailResponse>>>(
+      '/audit/my-activity',
+      {
+        params: { page, size },
+      }
+    );
+    return response.data;
+  },
+  getEntityHistory: async (entityName: string, entityId: number) => {
+    const response = await api.get<ApiResponse<AuditTrailResponse[]>>(
+      `/audit/entity/${entityName}/${entityId}`
+    );
+    return response.data;
+  },
+  getStatistics: async (startDate: string, endDate: string) => {
+    const response = await api.get<ApiResponse<Record<string, number>>>('/audit/statistics', {
+      params: { startDate, endDate },
+    });
+    return response.data;
+  },
+  search: async (searchRequest: AuditSearchRequest) => {
+    const response = await api.post<ApiResponse<PaginatedResponse<AuditTrailResponse>>>(
+      '/audit/search',
+      searchRequest
+    );
     return response.data;
   },
 };
@@ -221,4 +295,5 @@ export default {
   historiqueConges: historiqueCongesApi,
   users: usersApi,
   auth: authApi,
+  audit: auditApi,
 };

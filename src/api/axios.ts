@@ -1,12 +1,13 @@
 import axios, { AxiosError } from 'axios';
 import { toast } from 'sonner';
+import { API_CONFIG } from '@/constants';
 
 const api = axios.create({
-  baseURL: 'http://localhost:8080/api',
+  baseURL: API_CONFIG.BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 30000,
+  timeout: API_CONFIG.TIMEOUT,
 });
 
 // Request interceptor to add auth token
